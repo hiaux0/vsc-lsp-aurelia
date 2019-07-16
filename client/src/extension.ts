@@ -4,8 +4,10 @@
  * ------------------------------------------------------------------------------------------ */
 
 import * as path from 'path';
-import { workspace, ExtensionContext } from 'vscode';
-
+import { workspace, ExtensionContext, OutputChannel, window, languages, SnippetString, commands, TextEdit } from 'vscode';
+import AureliaCliCommands from './aureliaCLICommands';
+import { RelatedFiles } from './relatedFiles';
+import { registerPreview } from './Preview/Register';
 import {
 	LanguageClient,
 	LanguageClientOptions,
@@ -14,8 +16,37 @@ import {
 } from 'vscode-languageclient';
 
 let client: LanguageClient;
+let outputChannel: OutputChannel;
 
 export function activate(context: ExtensionContext) {
+	// Create default output channel
+  outputChannel = window.createOutputChannel('aurelia');
+  context.subscriptions.push(outputChannel);
+
+  // Register CLI commands
+  context.subscriptions.push(AureliaCliCommands.registerCommands(outputChannel));
+  context.subscriptions.push(new RelatedFiles());
+
+  // Register Code Actions
+  const edit = (uri: string, documentVersion: number, edits: TextEdit[]) =>
+  {
+    let textEditor = window.activeTextEditor;
+    if (textEditor && textEditor.document.uri.toString() === uri) {
+      textEditor.edit(mutator => {
+        for(let edit of edits) {
+          mutator.replace(client.protocol2CodeConverter.asRange(edit.range), edit.newText);
+        }
+      }).then((success) => {
+        window.activeTextEditor.document.save();
+        if (!success) {
+          window.showErrorMessage('Failed to apply Aurelia code fixes to the document. Please consider opening an issue with steps to reproduce.');
+        }
+      });
+    }
+  };
+  context.subscriptions.push(commands.registerCommand('aurelia-attribute-invalid-case', edit));
+  context.subscriptions.push(commands.registerCommand('aurelia-binding-one-way-deprecated', edit));
+
   console.log("TCL: activate -> activate", activate)
 	// The server is implemented in node
 	let serverModule = context.asAbsolutePath(
@@ -37,26 +68,25 @@ export function activate(context: ExtensionContext) {
 	};
 
 	// Options to control the language client
-	let clientOptions: LanguageClientOptions = {
-		// Register the server for plain text documents
-		documentSelector: [{ scheme: 'file', language: 'plaintext' }],
-		synchronize: {
-			// Notify the server about file changes to '.clientrc files contained in the workspace
-			fileEvents: workspace.createFileSystemWatcher('**/.clientrc')
-		}
+	const clientOptions: LanguageClientOptions = {
+    diagnosticCollectionName: 'Aurelia',
+    initializationOptions: {},
+    documentSelector: ['html'],
+    synchronize: {
+      configurationSection: ['aurelia'],
+    },
 	};
 
 	// Create the language client and start the client.
-	client = new LanguageClient(
-		'languageServerExample',
-		'ahtsaht Language Server Example',
+  client = new LanguageClient(
+		'html',
+		'Aurelia',
 		serverOptions,
 		clientOptions
 	);
 
 	// Start the client. This will also launch the server
 	client.start();
-  console.log("TCL: activate -> client", client)
 }
 
 export function deactivate(): Thenable<void> | undefined {
