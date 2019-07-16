@@ -59,6 +59,8 @@ export class TextDocumentContentProvider implements vscode.TextDocumentContentPr
     let fileName = vscode.window.activeTextEditor.document.fileName;
     let component = <WebComponent> await this.client.sendRequest('aurelia-view-information', fileName);
 
+    if (!component) return `No file path found for: ${fileName}`
+
     let headerHTML = `<h1>Component: '${component.name}'</h1>`;
     headerHTML += '<h2>Files</h2><ul>';
     for (let path of component.paths) {

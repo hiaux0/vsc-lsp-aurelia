@@ -21,21 +21,30 @@ export function registerPreview(context, window, client) {
   });
 
   context.subscriptions.push(vscode.commands.registerCommand('aurelia.showViewProperties', () => {
+      const panel = vscode.window.createWebviewPanel(
+        'aureliaViewData',
+        'Aurelia view data',
+        vscode.ViewColumn.Two,
+      );
 
-    const smartAutocomplete = vscode.workspace.getConfiguration().get('aurelia.featureToggles.smartAutocomplete');
-    if (smartAutocomplete) {
-      return vscode.commands.executeCommand('vscode.previewHtml', previewUri, vscode.ViewColumn.Two, 'Aurelia view data')
+      provider.provideTextDocumentContent(previewUri)
         .then(
           (success) => {
-          }, 
+            panel.webview.html = `
+              <!DOCTYPE html>
+              <html lang="en">
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <title>Cat Coding</title>
+                </head>
+                ${success}
+              </html>
+            `
+          },
           (reason) => {
             window.showErrorMessage(reason);
           });
-    } else {
-      return vscode.window.showWarningMessage('This command requires the experimental feature "smartAutocomplete" to be enabled');
-    }
-
-
 	}));
 
 }
