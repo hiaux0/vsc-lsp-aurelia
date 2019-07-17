@@ -3,6 +3,7 @@
  * Licensed under the MIT License. See License.txt in the project root for license information.
  * ------------------------------------------------------------------------------------------ */
 
+import 'reflect-metadata';
 import {
 	createConnection,
 	TextDocuments,
@@ -10,25 +11,52 @@ import {
 	Diagnostic,
 	DiagnosticSeverity,
 	ProposedFeatures,
+	CompletionList,
 	InitializeParams,
 	DidChangeConfigurationNotification,
 	CompletionItem,
 	CompletionItemKind,
 	TextDocumentPositionParams
 } from 'vscode-languageserver';
+import { MarkedString } from 'vscode-languageserver';
+
+import { Container } from 'aurelia-dependency-injection';
+import CompletionItemFactory from './CompletionItemFactory';
+import ElementLibrary from './Completions/Library/_elementLibrary';
+import AureliaSettings from './AureliaSettings';
+
+import ProcessFiles from './FileParser/ProcessFiles';
+
+import { HtmlValidator } from './Validations/HtmlValidator';
+import { HtmlInvalidCaseCodeAction } from './CodeActions/HtmlInvalidCaseCodeAction';
+import { OneWayBindingDeprecatedCodeAction } from './CodeActions/OneWayBindingDeprecatedCodeAction';
+
+import * as ts from 'typescript';
+import { AureliaApplication } from './FileParser/Model/AureliaApplication';
+import { normalizePath } from './Util/NormalizePath';
+import { connect } from 'net';
 
 // Create a connection for the server. The connection uses Node's IPC as a transport.
 // Also include all preview / proposed LSP features.
 let connection = createConnection(ProposedFeatures.all);
-connection.console.log('hello')
+console.log = connection.console.log.bind(connection.console);
+console.error = connection.console.error.bind(connection.console);
+console.log('hello')
 
 // Create a simple text document manager. The text document manager
 // supports full document sync only
 let documents: TextDocuments = new TextDocuments();
+documents.listen(connection);
 
 let hasConfigurationCapability: boolean = false;
 let hasWorkspaceFolderCapability: boolean = false;
 let hasDiagnosticRelatedInformationCapability: boolean = false;
+
+// Setup Aurelia dependency injection
+const globalContainer = new Container();
+const completionItemFactory = <CompletionItemFactory> globalContainer.get(CompletionItemFactory);
+const aureliaApplication = <AureliaApplication> globalContainer.get(AureliaApplication);
+const settings = <AureliaSettings> globalContainer.get(AureliaSettings);
 
 connection.onInitialize((params: InitializeParams) => {
 	let capabilities = params.capabilities;
@@ -49,11 +77,13 @@ connection.onInitialize((params: InitializeParams) => {
 
 	return {
 		capabilities: {
+			completionProvider: { resolveProvider: false, triggerCharacters: ['<', ' ', '.', '[', '"', '\''] },
+      codeActionProvider: true,
 			textDocumentSync: documents.syncKind,
 			// Tell the client that the server supports code completion
-			completionProvider: {
-				resolveProvider: true
-			}
+			// completionProvider: {
+			// 	resolveProvider: true
+			// }
 		}
 	};
 });
@@ -70,6 +100,25 @@ connection.onInitialized(() => {
 	}
 });
 
+const codeActions = [
+  new HtmlInvalidCaseCodeAction(),
+  new OneWayBindingDeprecatedCodeAction()
+];
+connection.onCodeAction(async codeActionParams => {
+  const diagnostics = codeActionParams.context.diagnostics;
+  const document = documents.get(codeActionParams.textDocument.uri);
+  if (!document)  return;
+
+  const commands = [];
+  for (const diagnostic of diagnostics) {
+    const action = codeActions.find(i => i.name == diagnostic.code);
+    if (action) {
+      commands.push(await action.commands(diagnostic, document));
+    }
+  }
+  return commands;
+});
+
 // The example settings
 interface ExampleSettings {
 	maxNumberOfProblems: number;
@@ -84,7 +133,13 @@ let globalSettings: ExampleSettings = defaultSettings;
 // Cache the settings of all open documents
 let documentSettings: Map<string, Thenable<ExampleSettings>> = new Map();
 
-connection.onDidChangeConfiguration(change => {
+connection.onDidChangeConfiguration(async change => {
+	console.log("TCL: onDidChangeConfiguration")
+	settings.quote = change.settings.aurelia.autocomplete.quotes === 'single' ? '\'' : '"';
+  settings.validation = change.settings.aurelia.validation;
+  settings.bindings.data = change.settings.aurelia.autocomplete.bindings.data;
+	settings.featureToggles = change.settings.aurelia.featureToggles;
+
 	if (hasConfigurationCapability) {
 		// Reset all cached document settings
 		documentSettings.clear();
@@ -96,6 +151,31 @@ connection.onDidChangeConfiguration(change => {
 
 	// Revalidate all open text documents
 	documents.all().forEach(validateTextDocument);
+  await featureToggles(settings.featureToggles);
+
+});
+
+// Setup Validation
+const validator = <HtmlValidator> globalContainer.get(HtmlValidator);
+documents.onDidChangeContent(async change => {
+  const diagnostics = await validator.doValidation(change.document);
+  connection.sendDiagnostics({ uri: change.document.uri, diagnostics });
+});
+
+// Lisen for completion requests
+connection.onCompletion(async (textDocumentPosition) => {
+  let document = documents.get(textDocumentPosition.textDocument.uri);
+  if (!document) return;
+
+  let text = document.getText();
+  let offset = document.offsetAt(textDocumentPosition.position);
+  let triggerCharacter = text.substring(offset - 1, offset);
+  let position = textDocumentPosition.position;
+  return CompletionList.create(await completionItemFactory.create(triggerCharacter, position, text, offset, textDocumentPosition.textDocument.uri), false);
+});
+
+connection.onRequest('aurelia-view-information', (filePath: string) => {
+  return aureliaApplication.components.find(doc => doc.paths.indexOf(normalizePath(filePath)) > -1);
 });
 
 function getDocumentSettings(resource: string): Thenable<ExampleSettings> {
@@ -240,3 +320,17 @@ documents.listen(connection);
 
 // Listen on the connection
 connection.listen();
+
+async function featureToggles(featureToggles: {}) {
+  if (settings.featureToggles.smartAutocomplete) {
+    console.log('smart auto complete init');
+    try {
+      let fileProcessor = new ProcessFiles();
+      await fileProcessor.processPath();
+      aureliaApplication.components = fileProcessor.components;
+    } catch (ex) {
+      console.log('------------- FILE PROCESSOR ERROR ---------------------');
+      console.log(JSON.stringify(ex));
+    }
+  }
+}
