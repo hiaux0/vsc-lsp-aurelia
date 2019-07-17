@@ -11,8 +11,31 @@
 		"type": "git",
 		"url": "https://github.com/Microsoft/vscode-extension-samples"
 	},
+	"devDependencies": {
+		"@types/chai": "^4.1.2",
+		"@types/mocha": "^5.0.0",
+		"@types/node": "^9.6.5",
+		"chai": "^4.1.2",
+		"commitplease": "^3.2.0",
+		"conventional-changelog-cli": "^1.3.1",
+		"mocha": "^5.1.0",
+		"mocha-junit-reporter": "^1.13.0",
+		"oniguruma": "^7.2.0",
+		"tslint": "^5.2.0",
+		"vscode": "^1.1.35",
+		"vscode-textmate": "^4.2.2"
+	},
 	"dependencies": {
-		"vscode-languageserver": "^4.1.3"
+		"aurelia-binding": "^2.3.1",
+		"aurelia-cli": "^1.0.2",
+		"aurelia-dependency-injection": "^1.4.2",
+		"aurelia-templating-binding": "^1.5.3",
+		"parse5": "^4.0.0",
+		"reflect-metadata": "^0.1.9",
+		"typescript": "^2.3.2",
+		"vscode-languageclient": "^4.1.3",
+		"vscode-languageserver": "^4.1.3",
+		"vscode-uri": "^1.0.0"
 	},
 	"scripts": {}
 }
