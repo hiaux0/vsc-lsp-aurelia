@@ -14,28 +14,35 @@ export class HTMLDocumentParser {
 
       const parser = new SAXParser({ locationInfo: true });
       parser.on('startTag', (name, attrs, selfClosing, location) => {
+        if (location === undefined) {
+          throw new TypeError('location is undefined')
+        }
+
         stack.push(new TagDefinition(
-          true, 
-          name, 
-          location.startOffset, 
+          true,
+          name,
+          location.startOffset,
           location.endOffset,
           selfClosing,
           attrs.map(i => new AttributeDefinition(i.name, i.value, location.attrs[i.name]))));
       });
       parser.on("endTag", (name, location) => {
+        if (location === undefined) {
+          throw new TypeError('location is undefined')
+        }
         stack.push(new TagDefinition(
           false,
-          name, 
-          location.startOffset, 
-          location.endOffset));    
+          name,
+          location.startOffset,
+          location.endOffset));
       });
 
-      stream.on('end', x => {
+      stream.on('end', () => {
         resolve(stack);
       });
       stream.pipe(parser);
 
-    });  
+    });
   }
 
   public getElementAtPosition(text: string, start: number, end: number): Promise<TagDefinition> {
@@ -48,44 +55,47 @@ export class HTMLDocumentParser {
 
       const parser = new SAXParser({ locationInfo: true });
       parser.on('startTag', (name, attrs, selfClosing, location) => {
+        if (location === undefined) {
+          throw new TypeError('location is undefined')
+        }
 
          if (location.startOffset <= start && location.endOffset >= end) {
           tagDefinition = new TagDefinition(
-            true, 
-            name, 
-            location.startOffset, 
+            true,
+            name,
+            location.startOffset,
             location.endOffset,
             selfClosing,
             attrs.map(i => new AttributeDefinition(i.name, i.value, location.attrs[i.name])));
-         } 
+         }
       });
 
-      stream.on('end', x => {
+      stream.on('end', () => {
         resolve(tagDefinition);
       });
       stream.pipe(parser);
-    }); 
+    });
   }
 
 }
 
 export class TagDefinition {
   constructor(
-    public startTag: boolean, 
-    public name: string, 
-    public startOffset: number, 
+    public startTag: boolean,
+    public name: string,
+    public startOffset: number,
     public endOffset: number,
-    public selfClosing: boolean = null,
+    public selfClosing: boolean | null = null,
     public attributes: Array<AttributeDefinition> = []) {
   }
 }
 export class AttributeDefinition {
 
-  public name: string;
-  public binding: string;
+  public name: string = '';
+  public binding: string = '';
 
-  public endOffset: number;
-  public startOffset: number;
+  public endOffset: number = 0
+  public startOffset: number = 0;
 
   constructor(name: string, public value: string, location?: MarkupData.Location) {
     if (name) {

@@ -2,16 +2,17 @@ import { Hover } from 'vscode-languageserver';
 import { autoinject } from 'aurelia-dependency-injection';
 import ElementLibrary from './Completions/Library/_elementLibrary';
 import { MozDocElement } from './Completions/Library/_elementStructure';
+import UnknownElement from './Completions/Library/unknownElement';
 
 @autoinject()
 export default class HoverProviderFactory {
 
   constructor(private elementLibrary: ElementLibrary) { }
 
-  public create(text: string, offset: number): Hover {
+  public create(text: string, offset: number): Hover | undefined {
 
     let leadingCharacter = '', appixCharacter = '';
-    
+
     let backPos = offset;
     while(true) {
       let char = text[backPos];
@@ -38,7 +39,7 @@ export default class HoverProviderFactory {
     let documentation = '';
     let source = '';
     let moreInfo = '';
-    let element;
+    let element: MozDocElement | UnknownElement = this.elementLibrary.unknownElement;
     switch(leadingCharacter) {
       case '<':
         element = this.elementLibrary.elements[tag] || this.elementLibrary.unknownElement;
@@ -52,7 +53,7 @@ export default class HoverProviderFactory {
         element = this.elementLibrary.elements[tag];
         if (element) {
           documentation = element.documentation;
-          moreInfo = `more information: ${element.url}`;    
+          moreInfo = `more information: ${element.url}`;
           displayValue = `</${tag}>`;
         }
       break;
@@ -63,7 +64,7 @@ export default class HoverProviderFactory {
         }
         let elementName = matches[1];
         displayValue = `<${elementName} ${tag}="">`;
-        
+
         // fixes
         if (tag.startsWith('data-')) {
           tag = 'data-*';
@@ -71,7 +72,7 @@ export default class HoverProviderFactory {
         if (tag.indexOf('.')) {
           tag = tag.split('.')[0];
         }
-       
+
         element = this.elementLibrary.elements[elementName] || this.elementLibrary.unknownElement;
         let attribute = element.attributes.get(tag);
         let event = element.events.get(tag);
@@ -83,7 +84,7 @@ export default class HoverProviderFactory {
           documentation = event.documentation;
           moreInfo = event.url;
           source =  `MDN by Mozilla Contributors (${event.url}$history) is licensed under CC-BY-SA 2.5.`;
-        }      
+        }
     }
 
     documentation = documentation.replace(/\s\s+/g, ' ');
@@ -94,12 +95,12 @@ export default class HoverProviderFactory {
 
     if (element instanceof MozDocElement) {
       source = element.licenceText;
-    } 
+    }
 
     return {
-      contents: [ 
-        { language: 'html', value: displayValue }, 
-        { language: 'markdown', value: documentation }, 
+      contents: [
+        { language: 'html', value: displayValue },
+        { language: 'markdown', value: documentation },
         moreInfo,
         source
       ]

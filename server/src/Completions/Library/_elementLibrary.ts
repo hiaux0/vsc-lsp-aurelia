@@ -48,7 +48,7 @@ import IframeElement from './iframeElement';
 import ImgElement from './imgElement';
 import InsElement from './insElement';
 import KdbElement from './kdbElement';
-import LabelElement from './labelElement'; 
+import LabelElement from './labelElement';
 import LegendElement from './legendElement';
 import LiElement from './liElement';
 import LinkElement from './linkElement';
@@ -108,11 +108,14 @@ import WbrElement from './wbrElement';
 import UnknownElement from './unknownElement';
 
 import RequireElement from './requireElement';
+import {MozDocElement} from './_elementStructure';
 
 @singleton()
 export default class ElementLibrary {
-  
-  public elements = {};
+
+  public elements: {
+    [elementName: string]: MozDocElement | UnknownElement;
+  } = {};
 
   public unknownElement = new UnknownElement();
 
@@ -229,7 +232,7 @@ export default class ElementLibrary {
     this.elements['video'] = new VideoElement();
     this.elements['wbr'] = new WbrElement();
 
-        
+
     this.elements['compose'] = new ComposeElement();
     this.elements['require'] = new RequireElement();
 

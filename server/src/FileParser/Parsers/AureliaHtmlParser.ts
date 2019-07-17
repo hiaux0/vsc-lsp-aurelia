@@ -2,17 +2,17 @@ import * as Path from 'path';
 import { Parser }  from 'aurelia-binding';
 import {HtmlTemplateDocument} from './../Model/HtmlTemplateDocument';
 import {TemplateReference} from './../Model/TemplateReference';
-import {HTMLDocumentParser} from './../HTMLDocumentParser';
+import {HTMLDocumentParser, TagDefinition} from './../HTMLDocumentParser';
 import { sys } from 'typescript';
 
 export class AureliaHtmlParser {
 
-  public async processFile(path) {
+  public async processFile(path: string) {
     let template = new HtmlTemplateDocument();
     template.path = path;
     template.name = Path.basename(path, '.html').split(/(?=[A-Z])/).map(s => s.toLowerCase()).join('-');
 
-    const fileContent = sys.readFile(path, 'utf-8');
+    const fileContent = sys.readFile(path, 'utf-8') || '';
     if (!fileContent.startsWith('<template')) {
       // not an Aurelia template, stop processing
       return template;
@@ -32,7 +32,7 @@ export class AureliaHtmlParser {
     return template;
   }
 
-  private getBindableValuesFrom(templateTag) {
+  private getBindableValuesFrom(templateTag: TagDefinition) {
     const bindableAttribute = templateTag.attributes.find(attribute => attribute.name === 'bindable');
     if (bindableAttribute && bindableAttribute.value) {
       return bindableAttribute.value.split(',').map(i => i.trim());
@@ -41,7 +41,7 @@ export class AureliaHtmlParser {
     }
   }
 
-  private getRequireImportsFrom(document) {
+  private getRequireImportsFrom(document: TagDefinition[]) {
 
       const requireStatements = document.filter(tag => tag.name === 'require' && tag.startTag);
       let references = [];
@@ -63,7 +63,7 @@ export class AureliaHtmlParser {
       return references;
   }
 
-  private getAttributeCommands(document) {
+  private getAttributeCommands(document: TagDefinition[]) {
 
     let bindings = [];
     const aureliaParser = new Parser();
@@ -87,7 +87,7 @@ export class AureliaHtmlParser {
     return bindings;
   }
 
-  private getStringInterpolationBindings(fileContent) {
+  private getStringInterpolationBindings(fileContent: string) {
     let bindings = [];
     const aureliaParser = new Parser();
     const interpolationRegex = /\$\{(.*)\}/g;

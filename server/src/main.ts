@@ -1,10 +1,10 @@
 import 'reflect-metadata';
-import { createConnection, 
-  IConnection, 
-  TextDocuments, 
-  InitializeParams, 
-  InitializeResult, 
-  Hover, 
+import { createConnection,
+  IConnection,
+  TextDocuments,
+  InitializeParams,
+  InitializeResult,
+  Hover,
   CompletionList,
   InitializedParams } from 'vscode-languageserver';
 import { MarkedString } from 'vscode-languageserver';
@@ -41,10 +41,10 @@ const settings = <AureliaSettings> globalContainer.get(AureliaSettings);
 
 // Register characters to lisen for
 connection.onInitialize(async (params: InitializeParams): Promise<InitializeResult> => {
-  
+
   // TODO: find better way/place to init this
   const dummy = globalContainer.get(ElementLibrary);
-  
+
   return {
     capabilities: {
       completionProvider: { resolveProvider: false, triggerCharacters: ['<', ' ', '.', '[', '"', '\''] },
@@ -61,7 +61,9 @@ const codeActions = [
 connection.onCodeAction(async codeActionParams => {
   const diagnostics = codeActionParams.context.diagnostics;
   const document = documents.get(codeActionParams.textDocument.uri);
-  const commands = []; 
+  if (!document)  return;
+
+  const commands = [];
   for (const diagnostic of diagnostics) {
     const action = codeActions.find(i => i.name == diagnostic.code);
     if (action) {
@@ -72,7 +74,7 @@ connection.onCodeAction(async codeActionParams => {
 });
 
 // Register and get changes to Aurelia settings
-connection.onDidChangeConfiguration(async (change) => { 
+connection.onDidChangeConfiguration(async (change) => {
   settings.quote = change.settings.aurelia.autocomplete.quotes === 'single' ? '\'' : '"';
   settings.validation = change.settings.aurelia.validation;
   settings.bindings.data = change.settings.aurelia.autocomplete.bindings.data;
@@ -91,6 +93,8 @@ documents.onDidChangeContent(async change => {
 // Lisen for completion requests
 connection.onCompletion(async (textDocumentPosition) => {
   let document = documents.get(textDocumentPosition.textDocument.uri);
+  if (!document) return;
+
   let text = document.getText();
   let offset = document.offsetAt(textDocumentPosition.position);
   let triggerCharacter = text.substring(offset - 1, offset);
@@ -106,7 +110,7 @@ connection.onRequest('aurelia-view-information', (filePath: string) => {
 connection.listen();
 
 
-async function featureToggles(featureToggles) {
+async function featureToggles(featureToggles: {}) {
   if (settings.featureToggles.smartAutocomplete) {
     console.log('smart auto complete init');
     try {

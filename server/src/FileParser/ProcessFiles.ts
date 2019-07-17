@@ -38,7 +38,7 @@ export default class ProcessFiles {
 
         switch (Path.extname(path)) {
           case '.ts':
-            const fileContent: string = sys.readFile(path, 'utf8');
+            const fileContent = sys.readFile(path, 'utf8') || '';
             const result = processSourceFile(path, fileContent, 'typescript');
             component.viewModel = new ViewModelDocument();
             component.viewModel.type = "typescript";
@@ -91,7 +91,7 @@ export default class ProcessFiles {
     }
   }
 
-  private findOrCreateWebComponentBy(name) {
+  private findOrCreateWebComponentBy(name: string) {
     let component = this.components.find(c => c.name === name);
     if (!component) {
       component = new WebComponent(name);
@@ -118,7 +118,7 @@ export function processSourceFile(fileName: string, content: string, type: strin
 function processFile(sourceFile: SourceFile) {
 
   let getCodeInformation = (node: Node) => {
-    let classes = [];
+    let classes: any[] = [];
     forEachChild(node, n => {
       if (n.kind === SyntaxKind.ClassDeclaration) {
         classes.push(processClassDeclaration(n));
@@ -130,8 +130,8 @@ function processFile(sourceFile: SourceFile) {
 }
 
 function processClassDeclaration(node: Node) {
-  let properties = [];
-  let methods = [];
+  let properties: any[] = [];
+  let methods: any[] = [];
   if (!node) {
     return { properties, methods };
   }
@@ -197,9 +197,13 @@ function processClassDeclaration(node: Node) {
     }
   }
 
-  let classModifiers = [];
+  let classModifiers: any[] = [];
   if (declaration.modifiers) {
     classModifiers = declaration.modifiers.map(m => m.getText());
+  }
+
+  if (declaration.name === undefined) {
+    throw new TypeError('declaration.name is undefined');
   }
 
   return {

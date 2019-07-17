@@ -8,8 +8,8 @@ export class HtmlTemplateDocument {
   public tags: Array<TagDefinition> = [];
   public references: Array<TemplateReference> = [];
 
-  public path: string;
-  public name: string;
+  public path: string = '';
+  public name: string = '';
 
-  
+
 }

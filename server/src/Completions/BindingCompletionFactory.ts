@@ -1,27 +1,33 @@
-import { 
-  CompletionItem, 
-  CompletionItemKind, 
+/** @typedef {import('./Library/_elementLibrary').Event} Event */
+/** @typedef {import('./Library/_elementLibrary').BaseElement} BaseElement */
+
+
+import {
+  CompletionItem,
+  CompletionItemKind,
   InsertTextFormat, MarkedString } from 'vscode-languageserver';
 import { autoinject } from 'aurelia-dependency-injection';
 import ElementLibrary from './Library/_elementLibrary';
 import { TagDefinition, AttributeDefinition } from './../FileParser/HTMLDocumentParser';
 import BaseAttributeCompletionFactory from './BaseAttributeCompletionFactory';
-import { GlobalAttributes } from './Library/_elementStructure';
+import { BaseElement, GlobalAttributes, Event } from './Library/_elementStructure';
 import AureliaSettings from './../AureliaSettings';
+
 
 @autoinject()
 export default class BindingCompletionFactory extends BaseAttributeCompletionFactory {
-  
+
   constructor(library: ElementLibrary, private settings: AureliaSettings) { super(library); }
 
   public create(tagDef: TagDefinition, attributeDef: AttributeDefinition, nextChar: string): Array<CompletionItem> {
-    
+
     let snippetPrefix = nextChar === '=' ? '' : `=${this.settings.quote}$0${this.settings.quote}`;
     let result: Array<CompletionItem> = [];
-    
+
     let element = this.getElement(tagDef.name);
     if (!element.events.get(attributeDef.name) && !GlobalAttributes.events.get(attributeDef.name)) {
       this.setAttributes(element.attributes, attributeDef.name, snippetPrefix, result);
+
     }
 
     this.setEvents(element.events, attributeDef.name, snippetPrefix, result);
@@ -29,11 +35,11 @@ export default class BindingCompletionFactory extends BaseAttributeCompletionFac
     return result;
   }
 
-  private setEvents(events, name, snippetPrefix, result) {
+  private setEvents(events: BaseElement["events"], name: AttributeDefinition["name"], snippetPrefix: string, result: CompletionItem[]) {
       let event = events.get(name);
       if (!event) {
         event = GlobalAttributes.events.get(name);
-      }    
+      }
 
       if (event) {
         if (event.bubbles) {
@@ -45,7 +51,7 @@ export default class BindingCompletionFactory extends BaseAttributeCompletionFac
               kind: CompletionItemKind.Property,
               label: `.${binding}=${this.settings.quote}${this.settings.quote}`
             });
-          }                      
+          }
         }
 
         for (let binding of ['trigger', 'call']) {
@@ -56,11 +62,11 @@ export default class BindingCompletionFactory extends BaseAttributeCompletionFac
             kind: CompletionItemKind.Property,
             label: `.${binding}=${this.settings.quote}${this.settings.quote}`
           });
-        }        
-      }    
+        }
+      }
   }
 
-  private setAttributes(attributes, name, snippetPrefix, result) {
+  private setAttributes(attributes: BaseElement["attributes"], name: AttributeDefinition["name"], snippetPrefix: string, result: CompletionItem[]) {
       let attribute = attributes.get(name);
       if (!attribute) {
         attribute = GlobalAttributes.attributes.get(name);
@@ -74,6 +80,6 @@ export default class BindingCompletionFactory extends BaseAttributeCompletionFac
           kind: CompletionItemKind.Property,
           label: binding.label ? (binding.label as string).replace(/'/g, this.settings.quote) : `.${binding.name}=${this.settings.quote}${this.settings.quote}`
         });
-      }   
+      }
   }
 }
